@@ -333,11 +333,8 @@ struct LaunchpadView: View {
          }
     }
 
-    private var launchpadEventBoundView: some View {
+    private var launchpadSelectionEventView: some View {
         launchpadBaseView
-        .sheet(isPresented: $appStore.isSetting) {
-            SettingsView(appStore: appStore)
-        }
         .onChange(of: appStore.followScrollPagingEnabled) { _, _ in
             if scrollState.followOffset != 0 || scrollState.accumulatedX != 0 || scrollState.isUserSwiping {
                 scrollState.followOffset = 0
@@ -389,6 +386,10 @@ struct LaunchpadView: View {
              // the display/context instead of discarding a settled frame.
              refreshBackgroundImage(reason: .contextChecked)
          }
+    }
+
+    private var launchpadBackgroundEventView: some View {
+        launchpadSelectionEventView
          .onChange(of: appStore.backgroundImageEnabled) { _, _ in
              refreshBackgroundImage(reason: .settingsChanged)
          }
@@ -424,6 +425,10 @@ struct LaunchpadView: View {
              refreshBackgroundImage(reason: .settingsChanged)
          }
 
+    }
+
+    private var launchpadLifecycleEventView: some View {
+        launchpadBackgroundEventView
            .onAppear {
               if !appStore.shouldShowOnboarding {
                   appStore.performInitialScanIfNeeded()
@@ -487,6 +492,10 @@ struct LaunchpadView: View {
             stopFPSMonitoring()
             backgroundImageController.clear()
          }
+    }
+
+    private var launchpadEventBoundView: some View {
+        launchpadLifecycleEventView
         .onChange(of: appStore.shouldShowOnboarding) { wasVisible, visible in
             if wasVisible && !visible {
                 if appStore.isInitialLoading {
@@ -641,6 +650,12 @@ struct LaunchpadView: View {
     }
 
     private func launchpadMainContent(in geo: GeometryProxy) -> some View {
+        let headerEdgePadding: CGFloat = 16
+        let searchGridSpacing = headerEdgePadding * 2
+        let showsPageIndicator = !appStore.shouldShowOnboarding && pages.count > 1
+        // The window already has outer padding. Match the header's extra inset
+        // when there is no pagination footer to provide bottom breathing room.
+        let singlePageBottomPadding: CGFloat = !config.isFullscreen && !appStore.shouldShowOnboarding && !showsPageIndicator ? headerEdgePadding : 0
         let actualTopPadding = config.isFullscreen ? geo.size.height * config.topPadding : 0
         let actualBottomPadding = config.isFullscreen ? geo.size.height * config.bottomPadding : 0
         let actualHorizontalPadding = config.isFullscreen ? geo.size.width * config.horizontalPadding : 0
@@ -711,7 +726,7 @@ struct LaunchpadView: View {
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.top)
+            .padding(.top, headerEdgePadding)
             .padding(.horizontal)
             .background(
                 ZStack {
@@ -726,12 +741,12 @@ struct LaunchpadView: View {
                     GeometryReader { proxy in
                         // Track the total header height, including dynamic top padding and extra spacing.
                         Color.clear.onAppear {
-                            let extra: CGFloat = 24
+                            let extra = searchGridSpacing + 8
                             let total = (config.isFullscreen ? geo.size.height * config.topPadding : 0) + proxy.size.height + extra
                             DispatchQueue.main.async { headerTotalHeight = total }
                         }
                         .onChange(of: proxy.size) { _, _ in
-                            let extra: CGFloat = 24
+                            let extra = searchGridSpacing + 8
                             let total = (config.isFullscreen ? geo.size.height * config.topPadding : 0) + proxy.size.height + extra
                             DispatchQueue.main.async { headerTotalHeight = total }
                         }
@@ -742,9 +757,9 @@ struct LaunchpadView: View {
             .opacity(isFolderOpen ? 0.1 : 1)
             .allowsHitTesting(!isFolderOpen)
 
-            // 保持原有上下留白，去掉可见的分割线
+            // Match the window edge breathing room below the search bar.
             Spacer()
-                .frame(height: 16)
+                .frame(height: searchGridSpacing)
 
             GeometryReader { gridGeo in
                 gridRegion(in: gridGeo,
@@ -755,7 +770,7 @@ struct LaunchpadView: View {
             .scaleEffect(appStore.shouldShowOnboarding ? 1 : postOnboardingGridScale)
 
             // Shared by both renderers; hover material stays local to this row.
-            if !appStore.shouldShowOnboarding && pages.count > 1 {
+            if showsPageIndicator {
                 LaunchpadPageIndicator(pageCount: pages.count,
                                       currentPage: appStore.currentPage,
                                       isActive: !isFolderOpen && isWindowVisible,
@@ -774,6 +789,7 @@ struct LaunchpadView: View {
                     .frame(height: actualBottomPadding)
             }
         }
+        .padding(.bottom, singlePageBottomPadding)
         .padding(.horizontal, actualHorizontalPadding)
     }
 
@@ -870,7 +886,6 @@ struct LaunchpadView: View {
                     FolderView(
                         appStore: appStore,
                         folder: folderBinding,
-                        preferredIconSize: currentIconSize * CGFloat(min(max(appStore.iconScale, 0.6), 1.15)),
                         initialRevealAppPath: folderAppToReveal,
                         onClose: {
                             let closingFolder = appStore.openFolder
@@ -920,7 +935,7 @@ struct LaunchpadView: View {
                         .frame(height: bottomPad)
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            if appStore.openFolder == nil && !appStore.isFolderNameEditing {
+                            if appStore.openFolder == nil && !appStore.isFolderNameEditing && !appStore.isSetting {
                                 AppDelegate.shared?.hideWindow()
                             }
                         }
@@ -933,7 +948,7 @@ struct LaunchpadView: View {
                         .frame(width: sidePad)
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            if appStore.openFolder == nil && !appStore.isFolderNameEditing {
+                            if appStore.openFolder == nil && !appStore.isFolderNameEditing && !appStore.isSetting {
                                 AppDelegate.shared?.hideWindow()
                             }
                         }
@@ -942,7 +957,7 @@ struct LaunchpadView: View {
                         .frame(width: sidePad)
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            if appStore.openFolder == nil && !appStore.isFolderNameEditing {
+                            if appStore.openFolder == nil && !appStore.isFolderNameEditing && !appStore.isSetting {
                                 AppDelegate.shared?.hideWindow()
                             }
                         }
@@ -2270,7 +2285,7 @@ extension LaunchpadView {
         let horizontalPadding: CGFloat = 8
         let verticalPadding: CGFloat = 8
         let hasLabel = appStore.showLabels
-        let iconLabelSpacing: CGFloat = hasLabel ? 8 : 0
+        let iconLabelSpacing: CGFloat = hasLabel ? IconLabelLayout.swiftUISpacing : 0
 
         let iconRect = CGRect(
             x: rect.midX - iconSize / 2 + 16,
@@ -2678,7 +2693,7 @@ extension LaunchpadView {
             Rectangle().fill(Color.clear)
                 .frame(height: appHeight)
         } else {
-            let shouldAllowHover = draggingItem == nil
+            let shouldAllowHover = draggingItem == nil && !isFolderOpen
 
             let isCenterCreatingTarget: Bool = {
                 guard let draggingItem, let idx = currentItems.firstIndex(of: item) else { return false }
@@ -2847,12 +2862,12 @@ extension LaunchpadView {
                               width: columnWidth,
                               height: appHeight)
 
-        // 与 LaunchpadItemButton 中的布局保持一致：按钮内容有 8pt 内边距，图标与标签垂直间距 8pt
+        // 与 LaunchpadItemButton 中的布局保持一致：按钮内容有 8pt 内边距，图标与标签使用共享垂直间距
         let horizontalPadding: CGFloat = 8
         let verticalPadding: CGFloat = 8
         let labelWidth = columnWidth * 0.9
         let hasLabel = appStore.showLabels
-        let iconLabelSpacing: CGFloat = hasLabel ? 8 : 0
+        let iconLabelSpacing: CGFloat = hasLabel ? IconLabelLayout.swiftUISpacing : 0
         let contentWidth = min(columnWidth, max(iconSize, labelWidth) + horizontalPadding * 2)
         let rawLabelHeight = max(0, appHeight - iconSize - verticalPadding * 2 - iconLabelSpacing)
         let labelHeight = hasLabel ? rawLabelHeight : 0
@@ -2884,7 +2899,7 @@ extension LaunchpadView {
 
         let hasLabel = appStore.showLabels
         let verticalPadding: CGFloat = 8
-        let iconLabelSpacing: CGFloat = hasLabel ? 8 : 0
+        let iconLabelSpacing: CGFloat = hasLabel ? IconLabelLayout.swiftUISpacing : 0
         let contentHeight = iconSize + iconLabelSpacing + (hasLabel ? max(0, appHeight - iconSize - verticalPadding * 2 - iconLabelSpacing) : 0) + verticalPadding * 2
         let insetY = max(0, (appHeight - contentHeight) / 2)
 
@@ -3383,7 +3398,7 @@ struct DragPreviewItem: View {
     var body: some View {
         switch item {
         case .app(let app):
-            VStack(spacing: 6) {
+            VStack(spacing: IconLabelLayout.layerSpacing) {
                 Image(nsImage: displayIcon)
                     .resizable()
                     .interpolation(.high)
@@ -3407,7 +3422,8 @@ struct DragPreviewItem: View {
                 Text(app.name)
                     .font(.default)
                     .foregroundColor(isMissing ? .secondary : .primary)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
                     .truncationMode(.tail)
                     .frame(width: labelWidth)
                     .padding(.horizontal, 8)
@@ -3417,7 +3433,7 @@ struct DragPreviewItem: View {
             .animation(LNAnimations.springFast, value: scale)
 
         case .missingApp(let placeholder):
-            VStack(spacing: 6) {
+            VStack(spacing: IconLabelLayout.layerSpacing) {
                 Image(nsImage: displayIcon)
                     .resizable()
                     .interpolation(.high)
@@ -3439,7 +3455,8 @@ struct DragPreviewItem: View {
                 Text(placeholder.displayName)
                     .font(.default)
                     .foregroundColor(.secondary)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
                     .truncationMode(.tail)
                     .frame(width: labelWidth)
                     .padding(.horizontal, 8)
@@ -3449,7 +3466,7 @@ struct DragPreviewItem: View {
             .animation(LNAnimations.springFast, value: scale)
 
         case .folder(let folder):
-            VStack(spacing: 6) {
+            VStack(spacing: IconLabelLayout.layerSpacing) {
                 ZStack {
                     RoundedRectangle(cornerRadius: iconSize * 0.2)
                         .foregroundStyle(Color.clear)
@@ -3470,7 +3487,8 @@ struct DragPreviewItem: View {
                 Text(folder.name)
                     .font(.default)
                     .foregroundColor(.primary)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
                     .truncationMode(.tail)
                     .frame(width: labelWidth)
                     .padding(.horizontal, 8)

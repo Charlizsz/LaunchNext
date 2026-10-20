@@ -193,6 +193,12 @@ enum LocalizationKey: String {
     case folderLiquidGlassHint
     case folderQuickLaunchTitle
     case folderQuickLaunchHint
+    case folderRowSpacingTitle
+    case folderRowSpacingHint
+    case folderIconSizeTitle
+    case folderIconSizeHint
+    case folderColumnsTitle
+    case folderColumnsHint
     case folderLayoutTitle
     case folderLayoutDescription
     case folderLayoutPaged
@@ -316,6 +322,7 @@ enum LocalizationKey: String {
     case settingsSectionDevelopment
     // case settingsSectionAIOverlay
     case settingsSectionAbout
+    case settingsWindowTitle
     case settingsSectionGeneral
     case settingsSectionAppSources
     case settingsSectionAppearance
@@ -792,6 +799,12 @@ final class LocalizationManager {
                 .folderLiquidGlassHint: "Use clear Liquid Glass for folder icons with Core Animation rendering. Turn off to restore the original style.",
                 .folderQuickLaunchTitle: "Folder Quick Launch",
                 .folderQuickLaunchHint: "Right-click a folder to open its apps directly. Inside a folder, right-click an app to pin it to the top. Pins are layout settings; launch counts and usage history are not recorded.",
+                .folderRowSpacingTitle: "Folder row spacing",
+                .folderRowSpacingHint: "Adjust the extra space between rows, without changing icon size or columns.",
+                .folderIconSizeTitle: "Folder icon size",
+                .folderIconSizeHint: "Independent of the main grid. Larger sizes are limited by the folder width and column count.",
+                .folderColumnsTitle: "Icons per folder row",
+                .folderColumnsHint: "Applies to all folders. Icons shrink in narrow windows to keep the selected column count.",
                 .folderLayoutTitle: "Folder Layout",
                 .folderLayoutDescription: "Choose how apps are displayed inside folders.",
                 .folderLayoutPaged: "Paged",
@@ -1682,6 +1695,12 @@ final class LocalizationManager {
                 .folderLiquidGlassHint: "为 Core Animation 渲染的文件夹图标使用通透液态玻璃。关闭后恢复原有样式。",
                 .folderQuickLaunchTitle: "文件夹快捷启动",
                 .folderQuickLaunchHint: "右键文件夹即可直接打开其中的应用；在文件夹内右键应用可将其固定到列表顶部。置顶属于布局设置，不会记录启动次数或使用历史。",
+                .folderRowSpacingTitle: "文件夹行间距",
+                .folderRowSpacingHint: "调节上下行之间的额外留白，不改变图标大小和每行数量。",
+                .folderIconSizeTitle: "文件夹内图标大小",
+                .folderIconSizeHint: "独立于主界面；过大的尺寸会按文件夹宽度和每行数量限制。",
+                .folderColumnsTitle: "文件夹每行图标数",
+                .folderColumnsHint: "适用于所有文件夹；窗口较窄时缩小图标，保持所选列数。",
                 .folderLayoutTitle: "文件夹布局",
                 .folderLayoutDescription: "选择文件夹内应用的显示方式。",
                 .folderLayoutPaged: "分页",
@@ -3866,6 +3885,7 @@ final class LocalizationManager {
         ]
 
         builder[.english]?.merge([
+            .settingsWindowTitle: "LaunchNext Settings",
             .settingsSectionGeneral: "General",
             .settingsSectionAppSources: "Source & Search",
             .settingsSectionGameController: "Game controller",
@@ -4056,6 +4076,7 @@ final class LocalizationManager {
         ]) { _, new in new }
 
         builder[.simplifiedChinese]?.merge([
+            .settingsWindowTitle: "LaunchNext 设置",
             .settingsSectionGeneral: "通用",
             .settingsSectionAppSources: "来源与搜索",
             .scanSourcesFuzzySearchTitle: "模糊搜索",
@@ -4254,6 +4275,7 @@ final class LocalizationManager {
         ]) { _, new in new }
 
         builder[.traditionalChinese] = [
+            .settingsWindowTitle: "LaunchNext 設定",
             .noAppsFound: "找不到任何應用",
             .searchPlaceholder: "搜尋",
             .appTitle: "LaunchNext",
@@ -4398,7 +4420,13 @@ final class LocalizationManager {
             .folderLiquidGlassHint: "為 Core Animation 繪製的資料夾圖示使用通透液態玻璃。關閉後恢復原有樣式。",
             .folderQuickLaunchTitle: "資料夾快速啟動",
             .folderQuickLaunchHint: "在資料夾上按右鍵即可直接開啟其中的 App；在資料夾內對 App 按右鍵可將其釘選到列表頂端。釘選屬於版面設定，不會記錄啟動次數或使用紀錄。",
-            .folderLayoutTitle: "資料夾佈局",
+            .folderRowSpacingTitle: "資料夾列間距",
+                .folderRowSpacingHint: "調節上下列之間的額外留白，不改變圖示大小和每行數量。",
+                .folderIconSizeTitle: "資料夾內圖示大小",
+                .folderIconSizeHint: "獨立於主畫面；過大的尺寸會按資料夾寬度和每行數量限制。",
+                .folderColumnsTitle: "資料夾每行圖示數",
+                .folderColumnsHint: "適用於所有資料夾；視窗較窄時縮小圖示，保持所選欄數。",
+                .folderLayoutTitle: "資料夾佈局",
             .folderLayoutDescription: "選擇資料夾內應用的顯示方式。",
             .folderLayoutPaged: "分頁",
             .folderLayoutVertical: "縱向滾動",
@@ -4736,6 +4764,7 @@ final class LocalizationManager {
             .launchAtLoginDescription: "macOS にログインした直後、ウィンドウを表示せずに LaunchNext をバックグラウンドで起動します。",
             .lockLayoutTitle: "レイアウトをロック",
             .lockLayoutDescription: "この設定がオンの間はアプリやフォルダを並べ替えできません。",
+            .settingsWindowTitle: "LaunchNext 設定",
             .settingsSectionGeneral: "一般",
             .settingsSectionAppSources: "ソースと検索",
             .scanSourcesFuzzySearchTitle: "あいまい検索",

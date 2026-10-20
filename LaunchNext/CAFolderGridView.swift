@@ -13,7 +13,15 @@ final class CAFolderGridView: NSView {
             if labelShadow != oldValue { updateLabelColors() }
         }
     }
-    var presentationState: CAFolderPresentationState?
+    var presentationState: CAFolderPresentationState? {
+        didSet { synchronizePresentationVisibility() }
+    }
+
+    func synchronizePresentationVisibility() {
+        // Preparation and transitions must stay hidden even when SwiftUI
+        // creates/reconfigures the native grid or async bitmap loads finish.
+        contentLayer.isHidden = presentationState?.allowsInteraction == false
+    }
     private var presentationIcons: [ObjectIdentifier: CALayer] = [:]
     private var renderedBackingScale: CGFloat?
     var apps: [AppInfo] = [] {
@@ -29,6 +37,16 @@ final class CAFolderGridView: NSView {
             verticalOffset = 0
             horizontalOffset = pageOffset(for: currentPage, metrics: makeMetrics())
             targetHorizontalOffset = horizontalOffset
+            updateLayout(animated: false)
+        }
+    }
+    var columnCount: Int = FolderGridColumns.defaultValue {
+        didSet {
+            guard columnCount != oldValue else { return }
+            currentPage = 0
+            verticalOffset = 0
+            horizontalOffset = 0
+            targetHorizontalOffset = 0
             updateLayout(animated: false)
         }
     }
@@ -102,7 +120,12 @@ final class CAFolderGridView: NSView {
         return insets
     }
     private let columnSpacing: CGFloat = 22
-    private let rowSpacing: CGFloat = 18
+    var rowSpacing: CGFloat = CGFloat(FolderRowSpacing.defaultValue) {
+        didSet {
+            guard rowSpacing != oldValue else { return }
+            updateLayout(animated: false)
+        }
+    }
     private let dragOutInset: CGFloat = -14
     private let pageFlipEdgeWidth: CGFloat = 60
     private let pageFlipDelay: TimeInterval = 0.4
@@ -113,6 +136,8 @@ final class CAFolderGridView: NSView {
     private var itemFrames: [CGRect] = []
     private var hoverTrackingArea: NSTrackingArea?
     private var currentPage = 0
+    private let verticalScrollIndicator = FolderScrollIndicator(frame: NSRect(x: 0, y: 0, width: 12, height: 100))
+    private let horizontalScrollIndicator = FolderScrollIndicator(frame: NSRect(x: 0, y: 0, width: 100, height: 12))
     private var horizontalOffset: CGFloat = 0
     private var targetHorizontalOffset: CGFloat = 0
     private var verticalOffset: CGFloat = 0
@@ -203,6 +228,11 @@ final class CAFolderGridView: NSView {
         updateLayerClipping()
         contentLayer.masksToBounds = false
         layer?.addSublayer(contentLayer)
+        for indicator in [verticalScrollIndicator, horizontalScrollIndicator] {
+            indicator.target = self
+            indicator.action = #selector(scrollIndicatorChanged(_:))
+            addSubview(indicator)
+        }
     }
 
     private func updateLayerClipping() {
@@ -340,19 +370,18 @@ final class CAFolderGridView: NSView {
         let height = max(bounds.height, 1)
         let availableWidth = max(1, width - contentInsets.left - contentInsets.right)
         let availableHeight = max(1, height - contentInsets.top - contentInsets.bottom)
-        let labelHeight: CGFloat = showLabels ? labelFontSize + 8 : 0
-        let labelTopSpacing: CGFloat = showLabels ? 6 : 0
+        let labelHeight: CGFloat = showLabels ? IconLabelLayout.height(fontSize: labelFontSize) : 0
+        let labelTopSpacing: CGFloat = showLabels ? IconLabelLayout.layerSpacing : 0
         let totalItemHeight = iconSize + labelTopSpacing + labelHeight
-        let minCellWidth = max(iconSize + 18, iconSize * 1.32)
         let minCellHeight = max(totalItemHeight + 12, iconSize * 1.28)
-        let columns = max(1, min(8, Int((availableWidth + columnSpacing) / (minCellWidth + columnSpacing))))
+        let columns = FolderGridColumns.normalized(columnCount)
         let usableWidth = max(1, availableWidth - CGFloat(columns - 1) * columnSpacing)
         let cellWidth = usableWidth / CGFloat(columns)
 
         if layoutMode == .paged {
             let rows = max(1, min(5, Int((availableHeight + rowSpacing) / (minCellHeight + rowSpacing))))
-            let usableHeight = max(1, availableHeight - CGFloat(rows - 1) * rowSpacing)
-            let cellHeight = usableHeight / CGFloat(rows)
+            // Do not stretch cells to consume the chosen row spacing.
+            let cellHeight = minCellHeight
             return Metrics(columns: columns,
                            rows: rows,
                            itemsPerPage: max(1, columns * rows),
@@ -368,12 +397,16 @@ final class CAFolderGridView: NSView {
         let rows = max(1, Int(ceil(Double(apps.count) / Double(max(columns, 1)))))
         let cellHeight = minCellHeight
         let contentHeight = contentInsets.top + contentInsets.bottom + CGFloat(rows) * cellHeight + CGFloat(max(rows - 1, 0)) * rowSpacing
+        // Padding below the last item's frame must not create a scrollable page.
+        // Keep the usual end padding only when actual icons/labels overflow.
+        let lastItemBottom = contentHeight - contentInsets.bottom - max(0, cellHeight - totalItemHeight) / 2
+        let fitsViewport = apps.isEmpty || lastItemBottom <= height + 0.5
         return Metrics(columns: columns,
                        rows: rows,
                        itemsPerPage: max(1, columns * max(rows, 1)),
                        cellWidth: cellWidth,
                        cellHeight: cellHeight,
-                       contentHeight: max(height, contentHeight),
+                       contentHeight: fitsViewport ? height : max(height, contentHeight),
                        totalItemHeight: totalItemHeight,
                        labelHeight: labelHeight,
                        labelTopSpacing: labelTopSpacing,
@@ -441,7 +474,7 @@ final class CAFolderGridView: NSView {
         textLayer.contentsScale = backingScale
         textLayer.alignmentMode = .center
         textLayer.truncationMode = .end
-        textLayer.isWrapped = false
+        textLayer.isWrapped = true
         textLayer.fontSize = labelFontSize
         textLayer.font = NSFont.systemFont(ofSize: labelFontSize, weight: labelFontWeight)
         textLayer.foregroundColor = currentLabelColor().cgColor
@@ -521,6 +554,7 @@ final class CAFolderGridView: NSView {
         CATransaction.commit()
         notifyPageStateChanged()
         notifyVerticalScrollOffsetChanged()
+        updateScrollIndicators()
     }
 
     private func frameForItem(at index: Int, metrics: Metrics) -> CGRect {
@@ -766,6 +800,8 @@ final class CAFolderGridView: NSView {
             super.scrollWheel(with: event)
             return
         }
+        if layoutMode == .paged && pageCount <= 1 { return }
+        flashScrollIndicator()
         if layoutMode == .paged {
             handlePagedScroll(event)
         } else {
@@ -957,6 +993,7 @@ final class CAFolderGridView: NSView {
 
     private func handleVerticalScroll(_ event: NSEvent) {
         let metrics = makeMetrics()
+        guard metrics.contentHeight > bounds.height + 0.5 else { return }
         let raw = event.scrollingDeltaY
         let baseline = max(AppStore.defaultScrollSensitivity, 0.0001)
         let sensitivityScale = CGFloat(max(scrollSensitivity, 0.0001) / baseline)
@@ -982,6 +1019,7 @@ final class CAFolderGridView: NSView {
             animatePageBoundaryNudge(toward: page)
             return
         }
+        if currentPage != target { flashScrollIndicator() }
         currentPage = target
         targetHorizontalOffset = resolvedOffset
         wheelAccumulatedDelta = 0
@@ -1073,6 +1111,7 @@ final class CAFolderGridView: NSView {
         contentLayer.transform = layoutMode == .paged ? CATransform3DMakeTranslation(horizontalOffset, 0, 0) : CATransform3DIdentity
         CATransaction.commit()
         updateVisibleItemFrames()
+        updateScrollIndicators()
     }
 
     private func updateVisibleItemFrames() {
@@ -1080,6 +1119,46 @@ final class CAFolderGridView: NSView {
         for (index, layer) in appLayers.enumerated() where itemFrames.indices.contains(index) {
             itemFrames[index] = visibleFrame(layer.frame)
         }
+    }
+
+    private func updateScrollIndicators() {
+        let metrics = makeMetrics()
+        let thickness = NSScroller.scrollerWidth(for: .small, scrollerStyle: .overlay)
+        verticalScrollIndicator.frame = NSRect(x: max(0, bounds.width - thickness - 2), y: 8,
+                                                width: thickness, height: max(0, bounds.height - 16))
+        horizontalScrollIndicator.frame = NSRect(x: 8, y: 4,
+                                                  width: max(0, bounds.width - 16), height: thickness)
+        let verticalRange = max(0, metrics.contentHeight - bounds.height)
+        verticalScrollIndicator.update(value: verticalRange > 0 ? Double(-verticalOffset / verticalRange) : 0,
+                                       proportion: layoutMode == .vertical ? bounds.height / max(1, metrics.contentHeight) : 1)
+        let horizontalRange = CGFloat(max(0, pageCount - 1)) * metrics.pageStride
+        horizontalScrollIndicator.update(value: horizontalRange > 0 ? Double(-horizontalOffset / horizontalRange) : 0,
+                                         proportion: layoutMode == .paged ? 1 / CGFloat(max(1, pageCount)) : 1)
+    }
+
+    private func flashScrollIndicator() {
+        updateScrollIndicators()
+        (layoutMode == .paged ? horizontalScrollIndicator : verticalScrollIndicator).flash()
+    }
+
+    @objc private func scrollIndicatorChanged(_ sender: NSScroller) {
+        let metrics = makeMetrics()
+        let direction: CGFloat
+        switch sender.hitPart {
+        case .decrementLine, .decrementPage: direction = -1
+        case .incrementLine, .incrementPage: direction = 1
+        default: direction = 0
+        }
+        if layoutMode == .paged {
+            let page = direction == 0 ? Int((sender.doubleValue * Double(max(0, pageCount - 1))).rounded()) : currentPage + Int(direction)
+            navigateToPage(page, animated: false)
+        } else {
+            let range = max(0, metrics.contentHeight - bounds.height)
+            let offset = direction == 0 ? -CGFloat(sender.doubleValue) * range : verticalOffset - direction * bounds.height * 0.85
+            verticalOffset = clampVerticalOffset(offset, metrics: metrics)
+            updateLayout(animated: false)
+        }
+        flashScrollIndicator()
     }
 
     private func clampVerticalOffset(_ value: CGFloat, metrics: Metrics) -> CGFloat {
@@ -1610,6 +1689,9 @@ extension CAFolderGridView {
         }
         finishFolderPresentation()
         guard let source, let motion, duration > 0, let root = layer, let stageLayer = stage.layer else { return }
+        // Only proxies are visible during the transition. Layout or async icon
+        // updates must not expose the full grid underneath the expanding card.
+        contentLayer.isHidden = true
         let folderRect = stage.convert(source.plateRectInWindow, from: nil)
         let gridRect = convert(bounds, to: stage)
         let compactScale = min(folderRect.width / max(1, gridRect.width),
@@ -1638,6 +1720,28 @@ extension CAFolderGridView {
             proxy.contentsScale = icon.contentsScale
             proxy.contentsGravity = .resizeAspect
             proxy.bounds = CGRect(origin: .zero, size: destination.size)
+            // Names follow icons only while opening. Closing uses icon-only
+            // proxies so tiny text never collapses into the folder preview.
+            // The real grid stays hidden until the atomic handoff.
+            if opening, let label = cell.sublayers?.first(where: { $0.name == "label" }) as? CATextLayer,
+               !label.isHidden {
+                let labelProxy = CATextLayer()
+                labelProxy.string = label.string
+                labelProxy.font = label.font
+                labelProxy.fontSize = label.fontSize
+                labelProxy.foregroundColor = label.foregroundColor
+                labelProxy.alignmentMode = label.alignmentMode
+                labelProxy.truncationMode = label.truncationMode
+                labelProxy.isWrapped = label.isWrapped
+                labelProxy.contentsScale = label.contentsScale
+                labelProxy.shadowColor = label.shadowColor
+                labelProxy.shadowOpacity = label.shadowOpacity
+                labelProxy.shadowRadius = label.shadowRadius
+                labelProxy.shadowOffset = label.shadowOffset
+                let labelRect = convert(label.convert(label.bounds, to: root), to: stage)
+                labelProxy.frame = labelRect.offsetBy(dx: -destination.minX, dy: -destination.minY)
+                proxy.addSublayer(labelProxy)
+            }
             stageLayer.addSublayer(proxy)
             presentationIcons[id] = proxy
             icon.opacity = 0
@@ -1670,6 +1774,7 @@ extension CAFolderGridView {
         CATransaction.setDisableActions(true)
         for icon in presentationIcons.values { icon.removeFromSuperlayer() }
         presentationIcons.removeAll(keepingCapacity: false)
+        synchronizePresentationVisibility()
         for cell in appLayers {
             let icon = cell.sublayers?.first(where: { $0.name == "icon" })
             for child in cell.sublayers ?? [] {

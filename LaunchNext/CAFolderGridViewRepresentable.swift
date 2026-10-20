@@ -43,6 +43,8 @@ struct CAFolderGridViewRepresentable: NSViewRepresentable {
         presentationState?.grid = view
         view.representedPageCount = pageCount
         view.layoutMode = appStore.folderLayoutMode
+        view.rowSpacing = CGFloat(appStore.folderRowSpacing)
+        view.columnCount = appStore.folderColumns
         view.iconSize = iconSize
         view.labelFontSize = CGFloat(appStore.iconLabelFontSize)
         view.labelFontWeight = nsFontWeight(for: appStore.iconLabelFontWeight)

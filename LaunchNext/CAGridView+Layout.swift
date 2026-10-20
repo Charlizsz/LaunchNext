@@ -156,7 +156,7 @@ extension CAGridView {
         textLayer.isHidden = !showLabels
         textLayer.alignmentMode = .center
         textLayer.truncationMode = .end
-        textLayer.isWrapped = false
+        textLayer.isWrapped = true
 
         // 性能优化：栅格化文字层
         textLayer.shouldRasterize = true
@@ -337,8 +337,8 @@ extension CAGridView {
         let strideX = cellWidth + columnSpacing
 
         let actualIconSize = iconSize
-        let labelHeight: CGFloat = showLabels ? (labelFontSize + 8) : 0
-        let labelTopSpacing: CGFloat = showLabels ? 6 : 0
+        let labelHeight: CGFloat = showLabels ? IconLabelLayout.height(fontSize: labelFontSize) : 0
+        let labelTopSpacing: CGFloat = showLabels ? IconLabelLayout.layerSpacing : 0
 
         for (pageIndex, pageLayers) in iconLayers.enumerated() {
             for (localIndex, containerLayer) in pageLayers.enumerated() {

@@ -389,6 +389,9 @@ final class AppStore: ObservableObject {
     static let trackpadVerticalDirectionKey = "trackpadVerticalDirection"
     static let hideMenuBarKey = "hideMenuBar"
     static let useCAGridRendererKey = "useCAGridRenderer"
+    static let folderRowSpacingKey = "folderRowSpacing"
+    static let folderIconSizeKey = "folderIconSize"
+    static let folderColumnsKey = "folderColumns"
     static let folderLayoutModeKey = "folderLayoutMode"
     static let windowOpenAnimationKey = "windowOpenAnimationEnabled"
     static let windowShadowEnabledKey = "windowShadowEnabled"
@@ -871,6 +874,9 @@ final class AppStore: ObservableObject {
             Self.folderPreviewHighResKey: enableHighResFolderPreviews,
             Self.folderQuickLaunchEnabledKey: folderQuickLaunchEnabled,
             Self.folderLayoutModeKey: folderLayoutMode.rawValue,
+            Self.folderColumnsKey: folderColumns,
+            Self.folderIconSizeKey: folderIconSize,
+            Self.folderRowSpacingKey: folderRowSpacing,
             "pageIndicatorOffset": pageIndicatorOffset,
             Self.pageIndicatorTopPaddingKey: pageIndicatorTopPadding,
             Self.pageIndicatorPerDisplayEnabledKey: pageIndicatorPerDisplayEnabled,
@@ -931,6 +937,9 @@ final class AppStore: ObservableObject {
         defaults.set(true, forKey: Self.folderPreviewHighResKey)
         defaults.set(false, forKey: Self.folderQuickLaunchEnabledKey)
         defaults.set(FolderLayoutMode.paged.rawValue, forKey: Self.folderLayoutModeKey)
+        defaults.set(FolderGridColumns.defaultValue, forKey: Self.folderColumnsKey)
+        defaults.set(FolderIconSizing.defaultValue, forKey: Self.folderIconSizeKey)
+        defaults.set(FolderRowSpacing.defaultValue, forKey: Self.folderRowSpacingKey)
         defaults.set(false, forKey: "hideDock")
         defaults.set(false, forKey: Self.hideMenuBarKey)
         defaults.set(0.8, forKey: "scrollSensitivity")
@@ -1008,6 +1017,9 @@ final class AppStore: ObservableObject {
         enableHighResFolderPreviews = defaults.object(forKey: Self.folderPreviewHighResKey) as? Bool ?? true
         folderQuickLaunchEnabled = defaults.object(forKey: Self.folderQuickLaunchEnabledKey) as? Bool ?? false
         folderLayoutMode = Self.loadFolderLayoutMode(from: defaults, isExistingInstall: nil)
+        folderColumns = FolderGridColumns.normalized(defaults.object(forKey: Self.folderColumnsKey) as? Int)
+        folderIconSize = FolderIconSizing.normalized(defaults.object(forKey: Self.folderIconSizeKey) as? Double)
+        folderRowSpacing = FolderRowSpacing.normalized(defaults.object(forKey: Self.folderRowSpacingKey) as? Double)
         hideDock = defaults.object(forKey: "hideDock") as? Bool ?? false
         hideMenuBar = defaults.object(forKey: Self.hideMenuBarKey) as? Bool ?? false
         scrollSensitivity = defaults.object(forKey: "scrollSensitivity") as? Double ?? 0.8
@@ -1537,6 +1549,34 @@ final class AppStore: ObservableObject {
         didSet {
             guard folderQuickLaunchEnabled != oldValue else { return }
             UserDefaults.standard.set(folderQuickLaunchEnabled, forKey: AppStore.folderQuickLaunchEnabledKey)
+        }
+    }
+
+    @Published var folderRowSpacing: Double = FolderRowSpacing.normalized(UserDefaults.standard.object(forKey: AppStore.folderRowSpacingKey) as? Double) {
+        didSet {
+            let normalized = FolderRowSpacing.normalized(folderRowSpacing)
+            if folderRowSpacing != normalized { folderRowSpacing = normalized }
+            guard folderRowSpacing != oldValue else { return }
+            UserDefaults.standard.set(folderRowSpacing, forKey: Self.folderRowSpacingKey)
+        }
+    }
+
+    @Published var folderIconSize: Double = FolderIconSizing.normalized(UserDefaults.standard.object(forKey: AppStore.folderIconSizeKey) as? Double) {
+        didSet {
+            let normalized = FolderIconSizing.normalized(folderIconSize)
+            if folderIconSize != normalized { folderIconSize = normalized }
+            guard folderIconSize != oldValue else { return }
+            UserDefaults.standard.set(folderIconSize, forKey: Self.folderIconSizeKey)
+        }
+    }
+
+    @Published var folderColumns: Int = FolderGridColumns.normalized(UserDefaults.standard.object(forKey: AppStore.folderColumnsKey) as? Int) {
+        didSet {
+            let normalized = FolderGridColumns.normalized(folderColumns)
+            if folderColumns != normalized { folderColumns = normalized }
+            guard folderColumns != oldValue else { return }
+            UserDefaults.standard.set(folderColumns, forKey: Self.folderColumnsKey)
+            DispatchQueue.main.async { [weak self] in self?.triggerFolderUpdate() }
         }
     }
 
@@ -5067,6 +5107,9 @@ final class AppStore: ObservableObject {
             Self.folderPreviewHighResKey,
             Self.folderQuickLaunchEnabledKey,
             Self.folderLayoutModeKey,
+            Self.folderColumnsKey,
+            Self.folderIconSizeKey,
+            Self.folderRowSpacingKey,
             "hideDock",
             Self.hideMenuBarKey,
             "scrollSensitivity",

@@ -2,6 +2,12 @@
 
 **语言**: [English](../README.md) | [简体中文](README.zh.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [Français](README.fr.md) | [Español](README.es.md) | [Deutsch](README.de.md) | [Русский](README.ru.md) | [हिन्दी](README.hi.md) | [Tiếng Việt](README.vi.md) | [Italiano](README.it.md) | [Čeština](README.cs.md) | [Polski](README.pl.md)
 
+## 本分支的定制改动
+
+本分支新增双行应用名称、独立的文件夹列数/图标大小/行间距设置、可移动设置窗口和原生文件夹滚动条，并修复文件夹背景悬停与展开/收起动画问题。详见[完整改动说明](../Documentation/FORK_CHANGES.zh-CN.md)及[本地构建说明](../Documentation/LOCAL_BUILD.md)。
+
+下方下载链接指向上游发行版，不包含本分支的定制改动。
+
 ## 📥 下载
 
 **[点此下载](https://github.com/RoversX/LaunchNext/releases/latest)** - 获取最新版本

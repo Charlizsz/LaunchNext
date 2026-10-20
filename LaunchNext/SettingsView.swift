@@ -212,23 +212,7 @@ struct SettingsView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(.ultraThinMaterial)
 
-            Button {
-                appStore.isSetting = false
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.title2.bold())
-                    .foregroundStyle(.secondary)
-                    .padding(8)
-                    .background(
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                            .liquidGlass()
-                            .shadow(color: .black.opacity(0.12), radius: 6, x: 0, y: 2)
-                    )
-            }
-            .buttonStyle(.plain)
-            .padding(.top, 12)
-            .padding(.trailing, 16)
+
         }
         .frame(minWidth: 820, minHeight: 640)
         .alert(appStore.localized(.customIconTitle), isPresented: Binding(get: { iconImportError != nil }, set: { if !$0 { iconImportError = nil } })) {
@@ -5323,6 +5307,51 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
             }
 
             Text(appStore.localized(.folderWindowSizeHint))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(appStore.localized(.folderIconSizeTitle)).font(.headline)
+                    Spacer()
+                    Text(String(format: "%.0f pt", appStore.folderIconSize))
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+                Slider(value: $appStore.folderIconSize, in: FolderIconSizing.range, step: 1)
+                    .accessibilityLabel(appStore.localized(.folderIconSizeTitle))
+                Text(appStore.localized(.folderIconSizeHint))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(appStore.localized(.folderRowSpacingTitle)).font(.headline)
+                    Spacer()
+                    Text(String(format: "%.0f pt", appStore.folderRowSpacing))
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+                Slider(value: $appStore.folderRowSpacing, in: FolderRowSpacing.range, step: 1)
+                    .accessibilityLabel(appStore.localized(.folderRowSpacingTitle))
+                Text(appStore.localized(.folderRowSpacingHint))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Stepper(value: $appStore.folderColumns, in: FolderGridColumns.range) {
+                HStack {
+                    Text(appStore.localized(.folderColumnsTitle))
+                    Spacer()
+                    Text("\(appStore.folderColumns)")
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Text(appStore.localized(.folderColumnsHint))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

@@ -897,8 +897,8 @@ extension CAGridView {
         let cellOriginY = pageHeight - contentInsets.top - CGFloat(row + 1) * cellHeight - CGFloat(row) * rowSpacing
 
         let actualIconSize = iconSize
-        let labelHeight: CGFloat = showLabels ? labelFontSize + 8 : 0
-        let labelTopSpacing: CGFloat = showLabels ? 6 : 0
+        let labelHeight: CGFloat = showLabels ? IconLabelLayout.height(fontSize: labelFontSize) : 0
+        let labelTopSpacing: CGFloat = showLabels ? IconLabelLayout.layerSpacing : 0
         let totalHeight = actualIconSize + labelTopSpacing + labelHeight
 
         let containerX = CGFloat(pageIndex) * pageStride + cellOriginX
@@ -1083,8 +1083,8 @@ extension CAGridView {
         let cellOriginX = contentInsets.left + CGFloat(col) * strideX
         let cellOriginY = pageHeight - contentInsets.top - CGFloat(row + 1) * cellHeight - CGFloat(row) * rowSpacing
 
-        let labelHeight: CGFloat = showLabels ? (labelFontSize + 8) : 0
-        let labelTopSpacing: CGFloat = showLabels ? 6 : 0
+        let labelHeight: CGFloat = showLabels ? IconLabelLayout.height(fontSize: labelFontSize) : 0
+        let labelTopSpacing: CGFloat = showLabels ? IconLabelLayout.layerSpacing : 0
         let totalHeight = iconSize + labelTopSpacing + labelHeight
 
         let containerX = CGFloat(pageIndex) * pageStride + cellOriginX
@@ -1610,8 +1610,8 @@ extension CAGridView {
 
         // 检查是否点击在图标+标签区域内（不是单元格的空白部分）
         let actualIconSize = iconSize
-        let labelHeight: CGFloat = showLabels ? (labelFontSize + 8) : 0
-        let labelTopSpacing: CGFloat = showLabels ? 6 : 0
+        let labelHeight: CGFloat = showLabels ? IconLabelLayout.height(fontSize: labelFontSize) : 0
+        let labelTopSpacing: CGFloat = showLabels ? IconLabelLayout.layerSpacing : 0
         let totalItemHeight = actualIconSize + labelTopSpacing + labelHeight
 
         // 图标+标签区域居中于单元格

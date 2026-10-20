@@ -79,7 +79,9 @@ final class CAFolderBackdropView: NSView {
 
 @MainActor
 final class CAFolderPresentationState {
-    var allowsInteraction = false
+    var allowsInteraction = false {
+        didSet { grid?.synchronizePresentationVisibility() }
+    }
     weak var grid: CAFolderGridView?
     var onLayout: (() -> Void)?
 }
@@ -352,7 +354,7 @@ final class CAFolderPresentationHost: NSView {
                 appStore.folders[index] = value
             }
         })
-        let root = FolderView(appStore: appStore, folder: binding, preferredIconSize: iconSize,
+        let root = FolderView(appStore: appStore, folder: binding,
                               presentationState: state, labelColorOverride: labelColorOverride, labelShadow: labelShadow,
                               initialRevealAppPath: initialRevealAppPath,
                               onClose: onClose, onLaunchApp: onLaunchApp)
@@ -376,6 +378,8 @@ final class CAFolderPresentationHost: NSView {
             container.addSubview(glass)
             let hosting = NSHostingView(rootView: root)
             hosting.wantsLayer = true
+            // Hide before attachment: attaching may trigger an immediate layout/display.
+            hosting.alphaValue = 0
             hosting.clipsToBounds = false
             hosting.frame = panelRect
             self.hosting = hosting
@@ -454,8 +458,9 @@ final class CAFolderPresentationHost: NSView {
             animateGlass(from: start, to: panelRect)
             animateMaterialHandoff(opening: true)
         } else { layoutGlass() }
+        let isReopening = reopeningGlassFrame != nil
         reopeningGlassFrame = nil
-        if animated { animateChrome(opening: true) }
+        if animated { animateChrome(opening: true, freshOpening: !isReopening) }
         else { hosting.alphaValue = 1 }
         CATransaction.commit()
         if !animated { finishOpening() }
@@ -503,6 +508,20 @@ final class CAFolderPresentationHost: NSView {
         mask.add(rounding, forKey: "folderPresentation.rounding")
         clipLayer.mask = mask
         glassMask = mask
+        // The icon proxies must obey the same moving boundary as the material.
+        // Without this mask they can appear across the final grid before the
+        // card has expanded to contain them.
+        if let stageLayer = animationStage?.layer {
+            let iconMask = CAShapeLayer()
+            iconMask.frame = bounds
+            iconMask.path = path(for: end)
+            let iconRounding = motion.animation(keyPath: "path", on: stageLayer) { fraction in
+                if fraction == 0, let oldPath { return oldPath }
+                return path(for: FolderPresentationMotion.rect(from: start, to: end, fraction: fraction))
+            }
+            iconMask.add(iconRounding, forKey: "folderPresentation.rounding")
+            stageLayer.mask = iconMask
+        }
         layer.sublayerTransform = transform(for: end)
         layer.add(animation, forKey: "folderPresentation.glass")
         CATransaction.commit()
@@ -664,9 +683,9 @@ final class CAFolderPresentationHost: NSView {
 
     /// The host only contains labels/title while the shared icon proxies animate
     /// above it. The relative delay uses the same timeline as the geometry.
-    private func animateChrome(opening: Bool) {
+    private func animateChrome(opening: Bool, freshOpening: Bool = false) {
         guard let hosting, let layer = hosting.layer else { return }
-        let opacity = layer.presentation()?.opacity ?? layer.opacity
+        let opacity: Float = freshOpening ? 0 : (layer.presentation()?.opacity ?? layer.opacity)
         let fade = CABasicAnimation(keyPath: "opacity")
         fade.fromValue = opacity
         fade.toValue = opening ? Float(1) : Float(0)

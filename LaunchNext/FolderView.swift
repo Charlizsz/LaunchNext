@@ -6,7 +6,6 @@ struct FolderView: View {
     @ObservedObject var appStore: AppStore
     @Binding var folder: FolderInfo
     // 若提供，将强制使用与外层一致的图标尺寸
-    var preferredIconSize: CGFloat? = nil
     var presentationState: CAFolderPresentationState? = nil
     var labelColorOverride: NSColor? = nil
     var labelShadow: BackgroundLabelContrast.Shadow = .none
@@ -42,11 +41,12 @@ struct FolderView: View {
     
     // 优化间距和布局参数
     private let spacing: CGFloat = 30
+    private var folderRowSpacing: CGFloat { CGFloat(appStore.folderRowSpacing) }
     // 动态列数，根据窗口宽度与单元最小宽度自适应
-    @State private var columnsCount: Int = 4
+    @State private var columnsCount: Int = FolderGridColumns.defaultValue
     private let gridPadding: CGFloat = 16
     private let titlePadding: CGFloat = 16
-    private let folderTitleHeight: CGFloat = 72
+    private let folderTitleHeight: CGFloat = 60
 
     private var visualApps: [AppInfo] {
         guard let dragging = draggingApp, let pending = pendingDropIndex else { return folder.apps }
@@ -101,6 +101,10 @@ struct FolderView: View {
             forceRefreshTrigger = UUID()
         }
         .onChange(of: folder.id) {
+            resetFolderPagingState()
+        }
+        .onChange(of: appStore.folderColumns) { _, value in
+            columnsCount = value
             resetFolderPagingState()
         }
         .onChange(of: appStore.folderLayoutMode) {
@@ -191,7 +195,8 @@ struct FolderView: View {
                         .shadow(color: .black.opacity(Double(labelShadow.opacity)),
                             radius: labelShadow.radius, x: 0, y: labelShadow.offset)
                         .focused($isTextFieldFocused)
-                        .padding()
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
                         .onSubmit {
                             finishEditing()
                         }
@@ -213,7 +218,8 @@ struct FolderView: View {
                         .foregroundColor(labelColorOverride.map { Color(nsColor: $0) } ?? .primary)
                         .shadow(color: .black.opacity(Double(labelShadow.opacity)),
                             radius: labelShadow.radius, x: 0, y: labelShadow.offset)
-                        .padding()
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
                         .contentShape(Rectangle()) // 确保整个区域都可以点击
                         .onTapGesture(count: 2) {
                             startEditing()
@@ -274,19 +280,14 @@ struct FolderView: View {
     
     @ViewBuilder
     private func appGridSection(geometry geo: GeometryProxy) -> some View {
-        // 初步估算（用当前列数）
-        let baseColumnWidth = computeColumnWidth(containerWidth: geo.size.width, columns: columnsCount)
-        let baseAppHeight = computeAppHeight(containerHeight: geo.size.height, columns: columnsCount)
-        let computedIcon = min(baseColumnWidth, baseAppHeight) * 0.75
-        let iconSize: CGFloat = preferredIconSize ?? computedIcon
-        // 固定为 6 列（还原文件夹内部原布局）
-        let desiredColumns = 6
-        // 使用自适应列数重新计算尺寸
+        let desiredColumns = appStore.folderColumns
+        let iconSize = min(CGFloat(appStore.folderIconSize),
+                           FolderGridColumns.maximumIconSize(width: geo.size.width, columns: desiredColumns))
+        // 按用户指定列数计算尺寸
         let recomputedColumnWidth = computeColumnWidth(containerWidth: geo.size.width, columns: desiredColumns)
-        let recomputedAppHeight = computeAppHeight(containerHeight: geo.size.height, columns: desiredColumns)
         // 保障单元格至少能容纳传入的图标尺寸与标签区域
         let columnWidth = max(recomputedColumnWidth, iconSize)
-        let appHeight = max(recomputedAppHeight, iconSize + 32)
+        let appHeight = iconSize + IconLabelLayout.swiftUISpacing + IconLabelLayout.height(fontSize: CGFloat(appStore.iconLabelFontSize)) + 16
         let labelWidth: CGFloat = columnWidth * 0.9
 
         if appStore.useCAGridRenderer {
@@ -315,7 +316,7 @@ struct FolderView: View {
                     scrollOffsetY = offsetY
                 }
                 .frame(height: 0)
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: spacing), count: desiredColumns), spacing: spacing) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: spacing), count: desiredColumns), spacing: folderRowSpacing) {
                     ForEach(Array(visualApps.enumerated()), id: \.element.id) { (idx, app) in
                         appDraggable(
                             app: app,
@@ -334,7 +335,8 @@ struct FolderView: View {
                 .id(forceRefreshTrigger) // 使用forceRefreshTrigger强制刷新应用网格
                 .padding(EdgeInsets(top: gridPadding, leading: gridPadding, bottom: gridPadding, trailing: gridPadding))
             }
-            .scrollIndicators(.hidden)
+            .scrollIndicators(.automatic)
+            .scrollBounceBehavior(.basedOnSize, axes: .vertical)
             .disabled(isEditingName) // 编辑状态下禁用滚动
             .onAppear { columnsCount = desiredColumns }
             .onChange(of: geo.size) { _, _ in columnsCount = desiredColumns }
@@ -393,19 +395,11 @@ struct FolderView: View {
 
 // MARK: - Drag helpers & builders (mirror outer logic, without folder creation)
 extension FolderView {
-    private func computeAppHeight(containerHeight: CGFloat, columns: Int) -> CGFloat {
-        // 自适应列数下估算行高
-        let maxRowsPerPage = Int(ceil(Double(folder.apps.count) / Double(max(columns, 1))))
-        let totalRowSpacing = spacing * CGFloat(max(0, maxRowsPerPage - 1))
-        let height = (containerHeight - totalRowSpacing) / CGFloat(maxRowsPerPage == 0 ? 1 : maxRowsPerPage)
-        return max(60, min(120, height)) // 优化高度范围
-    }
-    
     private func computeColumnWidth(containerWidth: CGFloat, columns: Int) -> CGFloat {
         let cols = max(columns, 1)
         let totalColumnSpacing = spacing * CGFloat(max(0, cols - 1))
         let width = (containerWidth - totalColumnSpacing) / CGFloat(cols)
-        return max(50, width) // 优化最小宽度
+        return max(1, width)
     }
 
     // 拖拽命中与单元格几何计算（在下方扩展中实现）
@@ -588,7 +582,7 @@ extension FolderView {
                                       appHeight: appHeight,
                                       columns: max(columnsCount, 1),
                                       columnSpacing: spacing,
-                                      rowSpacing: spacing,
+                                      rowSpacing: folderRowSpacing,
                                       pageSpacing: 0,
                                       currentPage: 0,
                                       gridPadding: gridPadding,
@@ -614,7 +608,7 @@ extension FolderView {
                                                       appHeight: appHeight,
                                                       columns: max(columnsCount, 1),
                                                       columnSpacing: spacing,
-                                                      rowSpacing: spacing,
+                                                      rowSpacing: folderRowSpacing,
                                                       pageSpacing: 0,
                                                       currentPage: 0,
                                                       itemsPerPage: visualApps.count,
@@ -660,6 +654,9 @@ private struct ScrollOffsetReader: NSViewRepresentable {
 
         func attachIfNeeded() {
             guard observer == nil, let scrollView = enclosingScrollView else { return }
+            scrollView.scrollerStyle = .overlay
+            scrollView.autohidesScrollers = true
+            scrollView.hasVerticalScroller = true
             scrollView.contentView.postsBoundsChangedNotifications = true
             observer = NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification,
                                                               object: scrollView.contentView,

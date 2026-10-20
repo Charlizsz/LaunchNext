@@ -1,6 +1,16 @@
 import SwiftUI
 import AppKit
 
+// Shared by the SwiftUI grid, Core Animation grids, and drag geometry.
+enum IconLabelLayout {
+    nonisolated static let layerSpacing: CGFloat = 4
+    nonisolated static let swiftUISpacing: CGFloat = 6
+    nonisolated static func height(fontSize: CGFloat) -> CGFloat {
+        let font = NSFont.systemFont(ofSize: fontSize)
+        return ceil(font.ascender - font.descender + font.leading) * 2 + 2
+    }
+}
+
 struct LaunchpadItemButton: View {
     let item: LaunchpadItem
     let iconSize: CGFloat
@@ -117,7 +127,7 @@ private struct LaunchpadItemButtonContent: View {
     }
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: IconLabelLayout.swiftUISpacing) {
             ZStack {
                 let renderedIcon: NSImage = {
                     switch item {
@@ -183,10 +193,10 @@ private struct LaunchpadItemButtonContent: View {
             if showLabel {
                 Text(item.name)
                     .font(.system(size: labelFontSize, weight: labelFontWeight))
-                    .lineLimit(1)
+                    .lineLimit(2)
                     .multilineTextAlignment(.center)
                     .truncationMode(.tail)
-                    .frame(width: labelWidth)
+                    .frame(width: labelWidth, height: IconLabelLayout.height(fontSize: labelFontSize), alignment: .top)
                     .foregroundStyle(isMissingItem ? Color.secondary : Color.primary)
             }
         }

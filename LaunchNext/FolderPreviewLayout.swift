@@ -14,5 +14,7 @@ enum FolderPreviewLayout {
         return CGRect(x: inner.minX + inset + CGFloat(index % 3) * (tile + spacing),
                       y: inner.maxY - inset - CGFloat(index / 3 + 1) * tile - CGFloat(index / 3) * spacing,
                       width: tile, height: tile)
+            // Reduce each thumbnail by 1 pt overall, keeping its center fixed.
+            .insetBy(dx: 0.5, dy: 0.5)
     }
 }

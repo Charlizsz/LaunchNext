@@ -27,7 +27,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSGestureR
 
     // let authStore = FileAuthStore()
     private var window: NSWindow?
-    // Settings sheets can become key; background geometry belongs to this window.
+    private var settingsWindowController: SettingsWindowController?
+    // Settings can become key; background geometry belongs to the launcher.
     var launchpadWindow: NSWindow? { window }
     private let minimumContentSize = NSSize(width: 800, height: 600)
     private var lastShowAt: Date?
@@ -87,6 +88,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSGestureR
         let shouldSilentlyLaunch = launchedAtLogin && appStore.isStartOnLogin
 
         setupWindow(showImmediately: !shouldSilentlyLaunch)
+        bindSettingsWindow()
         appStore.performInitialScanIfNeeded()
         appStore.startAutoRescan()
 
@@ -1403,6 +1405,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSGestureR
         // 背景点击关闭逻辑改为 SwiftUI 内部实现，避免与输入控件冲突
     }
 
+    private func bindSettingsWindow() {
+        let controller = SettingsWindowController(appStore: appStore, modelContainer: modelContainer)
+        settingsWindowController = controller
+        appStore.$isSetting
+            .receive(on: RunLoop.main)
+            .sink { [weak self] visible in
+                DispatchQueue.main.async { [weak self] in
+                    guard let self, self.appStore.isSetting == visible else { return }
+                    if visible {
+                        controller.show(relativeTo: self.window)
+                    } else {
+                        controller.close()
+                    }
+                }
+            }
+            .store(in: &cancellables)
+    }
+
     private func bindAppearancePreference() {
         appStore.$appearancePreference
             .receive(on: RunLoop.main)
@@ -1486,6 +1506,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSGestureR
         if window.level != targetLevel {
             window.level = targetLevel
         }
+        settingsWindowController?.updateLevel(targetLevel)
     }
 
     /// AppKit resets standalone modal panels to its modal level. Keep the
@@ -1514,6 +1535,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSGestureR
     private func applyAppearancePreference(_ preference: AppearancePreference) {
         let appearance = preference.nsAppearance.flatMap { NSAppearance(named: $0) }
         window?.appearance = appearance
+        settingsWindowController?.updateAppearance(appearance)
         NSApp.appearance = appearance
     }
 
