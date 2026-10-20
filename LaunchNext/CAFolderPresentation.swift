@@ -83,6 +83,7 @@ final class CAFolderPresentationState {
         didSet { grid?.synchronizePresentationVisibility() }
     }
     weak var grid: CAFolderGridView?
+    weak var scrollIndicatorHost: NSView?
     var onLayout: (() -> Void)?
 }
 
@@ -200,9 +201,18 @@ struct CAFolderPresentation: NSViewRepresentable {
 }
 
 @MainActor
+private final class FolderScrollOverlay: NSView {
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        let hit = super.hitTest(point)
+        return hit === self ? nil : hit
+    }
+}
+
+@MainActor
 final class CAFolderPresentationHost: NSView {
     weak var controller: CAFolderPresentationController?
     private var hosting: NSHostingView<FolderView>?
+    private var scrollOverlay: FolderScrollOverlay?
     private var glass: NSGlassEffectView?
     private var glassContainer: NSView?
     private var glassClipContainer: NSView?
@@ -289,6 +299,7 @@ final class CAFolderPresentationHost: NSView {
         super.layout()
         guard let hosting else { return }
         let target = panelRect
+        scrollOverlay?.frame = target
         if hosting.frame != target {
             // A resize changes the destination geometry: finish an opening, or
             // remove a closing panel, rather than leave old CA paths running.
@@ -385,6 +396,14 @@ final class CAFolderPresentationHost: NSView {
             self.hosting = hosting
             addSubview(hosting)
         }
+        if scrollOverlay == nil {
+            let overlay = FolderScrollOverlay(frame: panelRect)
+            overlay.wantsLayer = true
+            overlay.isHidden = true
+            addSubview(overlay)
+            scrollOverlay = overlay
+        }
+        state.scrollIndicatorHost = scrollOverlay
         state.onLayout = { [weak self] in self?.scheduleOpeningIfReady() }
         if phase == .preparing {
             // Keep real content alive during preparation; opacity does not stop
@@ -573,6 +592,7 @@ final class CAFolderPresentationHost: NSView {
         glassContainer?.layer?.sublayerTransform = CATransform3DIdentity
         layoutGlass()
         revealShadowAfterOpening()
+        scrollOverlay?.isHidden = false
         state?.allowsInteraction = true
         controller?.backdrop?.setFolderDepth(duration > 0 && source != nil, duration: 0)
         state?.grid?.finishFolderPresentation()
@@ -642,6 +662,7 @@ final class CAFolderPresentationHost: NSView {
         motion = nextMotion
         duration = nextMotion.duration
         phase = .closing
+        scrollOverlay?.isHidden = true
         state?.allowsInteraction = false
         completion?.cancel()
         preparationTimeout?.cancel(); preparationTimeout = nil
@@ -739,6 +760,7 @@ final class CAFolderPresentationHost: NSView {
            let hosting, responder.isDescendant(of: hosting) {
             window.makeFirstResponder(controller?.grid)
         }
+        scrollOverlay?.removeFromSuperview(); scrollOverlay = nil
         hosting?.removeFromSuperview(); hosting = nil
         glass?.removeFromSuperview(); glass = nil
         glassContainer?.removeFromSuperview(); glassContainer = nil

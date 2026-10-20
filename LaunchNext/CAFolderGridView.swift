@@ -229,6 +229,7 @@ final class CAFolderGridView: NSView {
         contentLayer.masksToBounds = false
         layer?.addSublayer(contentLayer)
         for indicator in [verticalScrollIndicator, horizontalScrollIndicator] {
+            indicator.scrollTarget = self
             indicator.target = self
             indicator.action = #selector(scrollIndicatorChanged(_:))
             addSubview(indicator)
@@ -1124,10 +1125,21 @@ final class CAFolderGridView: NSView {
     private func updateScrollIndicators() {
         let metrics = makeMetrics()
         let thickness = NSScroller.scrollerWidth(for: .small, scrollerStyle: .overlay)
-        verticalScrollIndicator.frame = NSRect(x: max(0, bounds.width - thickness - 2), y: 8,
-                                                width: thickness, height: max(0, bounds.height - 16))
-        horizontalScrollIndicator.frame = NSRect(x: 8, y: 4,
-                                                  width: max(0, bounds.width - 16), height: thickness)
+        // Anchor to the folder surface rather than the padded icon grid.
+        // Keep the tracks clear of the rounded corners and 4 pt inside the edge.
+        let host = presentationState?.scrollIndicatorHost ?? self
+        for indicator in [verticalScrollIndicator, horizontalScrollIndicator] where indicator.superview !== host {
+            host.addSubview(indicator)
+        }
+        let edge: CGFloat = 4
+        let endInset: CGFloat = 24
+        let trackBounds = host.bounds
+        verticalScrollIndicator.frame = NSRect(x: max(trackBounds.minX, trackBounds.maxX - thickness - edge),
+                                                y: trackBounds.minY + endInset,
+                                                width: thickness, height: max(0, trackBounds.height - endInset * 2))
+        horizontalScrollIndicator.frame = NSRect(x: trackBounds.minX + endInset,
+                                                  y: host.isFlipped ? trackBounds.maxY - thickness - edge : trackBounds.minY + edge,
+                                                  width: max(0, trackBounds.width - endInset * 2), height: thickness)
         let verticalRange = max(0, metrics.contentHeight - bounds.height)
         verticalScrollIndicator.update(value: verticalRange > 0 ? Double(-verticalOffset / verticalRange) : 0,
                                        proportion: layoutMode == .vertical ? bounds.height / max(1, metrics.contentHeight) : 1)

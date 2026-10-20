@@ -3,6 +3,7 @@ import AppKit
 /// Native overlay scroller, visible only during interaction with overflowing content.
 final class FolderScrollIndicator: NSScroller {
     override class var isCompatibleWithOverlayScrollers: Bool { true }
+    weak var scrollTarget: NSView?
     private var hideWorkItem: DispatchWorkItem?
     private var generation = 0
     private var overflowing = false
@@ -60,6 +61,6 @@ final class FolderScrollIndicator: NSScroller {
     }
 
     override func scrollWheel(with event: NSEvent) {
-        superview?.scrollWheel(with: event)
+        (scrollTarget ?? superview)?.scrollWheel(with: event)
     }
 }
