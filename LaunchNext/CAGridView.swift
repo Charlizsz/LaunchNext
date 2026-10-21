@@ -111,6 +111,8 @@ final class CAGridView: NSView, CALayerDelegate, NSDraggingSource {
     var frameTimes: [Double] = []
 
     // 图标缓存
+    var renderingScale: CGFloat { window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2 }
+    private var renderedDisplayScale: CGFloat?
     var iconCache: [String: CGImage] = [:]
     let iconCacheLock = NSLock()
     var enableIconPreload: Bool = false
@@ -278,9 +280,22 @@ final class CAGridView: NSView, CALayerDelegate, NSDraggingSource {
         }
     }
 
+    override func viewDidChangeBackingProperties() {
+        super.viewDidChangeBackingProperties()
+        refreshRenderingScale()
+    }
+
+    private func refreshRenderingScale() {
+        guard window != nil, renderedDisplayScale != renderingScale else { return }
+        renderedDisplayScale = renderingScale
+        clearIconCache()
+        rebuildLayers()
+    }
+
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         if let window = window {
+            refreshRenderingScale()
             window.acceptsMouseMovedEvents = true
             setupDisplayLink()
             // 始终安装滚轮事件监听器（更可靠）

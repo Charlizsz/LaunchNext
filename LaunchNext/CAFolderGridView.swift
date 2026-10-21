@@ -466,7 +466,7 @@ final class CAFolderGridView: NSView {
         iconLayer.contentsGravity = .resizeAspect
         iconLayer.contentsScale = backingScale
         iconLayer.masksToBounds = false
-        iconLayer.shouldRasterize = true
+        iconLayer.shouldRasterize = false
         iconLayer.rasterizationScale = backingScale
         container.addSublayer(iconLayer)
 
@@ -481,7 +481,7 @@ final class CAFolderGridView: NSView {
         textLayer.foregroundColor = currentLabelColor().cgColor
         BackgroundLabelContrast.applyLabelShadow(to: textLayer, style: labelShadow)
         textLayer.string = app.name
-        textLayer.shouldRasterize = true
+        textLayer.shouldRasterize = false
         textLayer.rasterizationScale = backingScale
         textLayer.isHidden = !showLabels
         container.addSublayer(textLayer)
@@ -547,7 +547,7 @@ final class CAFolderGridView: NSView {
             let frame = frameForItem(at: index, metrics: metrics)
             itemFrames[index] = visibleFrame(frame)
             layer.transform = CATransform3DIdentity
-            layer.frame = frame
+            layer.frame = convertFromBacking(IconRenderQuality.aligned(convertToBacking(frame), scale: 1))
             layoutSublayers(of: layer, metrics: metrics)
             layer.opacity = draggingIndex == index || apps[index].url == landingAppURL ? 0 : 1
         }
@@ -604,11 +604,11 @@ final class CAFolderGridView: NSView {
         let iconFrame = CGRect(x: iconX, y: iconY, width: iconSize, height: iconSize)
         if let iconLayer = layer.sublayers?.first(where: { $0.name == "icon" }) {
             iconLayer.transform = CATransform3DIdentity
-            iconLayer.frame = iconFrame
+            iconLayer.frame = IconRenderQuality.aligned(iconFrame, scale: backingScale)
         }
         if let textLayer = layer.sublayers?.first(where: { $0.name == "label" }) as? CATextLayer {
             textLayer.isHidden = !showLabels
-            textLayer.frame = CGRect(x: 4, y: 0, width: metrics.cellWidth - 8, height: metrics.labelHeight)
+            textLayer.frame = IconRenderQuality.alignedOrigin(CGRect(x: 4, y: 0, width: metrics.cellWidth - 8, height: metrics.labelHeight), scale: backingScale)
         }
         if let warningLayer = layer.sublayers?.first(where: { $0.name == "missingWarning" }) as? CATextLayer {
             let side = max(14, iconSize * 0.22)
@@ -676,21 +676,7 @@ final class CAFolderGridView: NSView {
     }
 
     private static func renderIcon(_ icon: NSImage, side: CGFloat, scale: CGFloat) -> CGImage? {
-        let pixelSide = max(16, Int((side * scale).rounded()))
-        // pixelSide already includes backingScale. NSImage.lockFocus would
-        // apply the screen scale a second time and allocate an oversized bitmap.
-        let format = CGBitmapInfo.floatComponents.rawValue | CGBitmapInfo.byteOrder16Little.rawValue
-            | CGImageAlphaInfo.premultipliedLast.rawValue
-        guard let colorSpace = CGColorSpace(name: CGColorSpace.extendedSRGB),
-              let context = CGContext(data: nil, width: pixelSide, height: pixelSide,
-                                      bitsPerComponent: 16, bytesPerRow: 0,
-                                      space: colorSpace, bitmapInfo: format) else { return nil }
-        NSGraphicsContext.saveGraphicsState()
-        defer { NSGraphicsContext.restoreGraphicsState() }
-        NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
-        NSGraphicsContext.current?.imageInterpolation = .high
-        icon.draw(in: NSRect(x: 0, y: 0, width: pixelSide, height: pixelSide))
-        return context.makeImage()
+        IconRenderQuality.bitmap(icon, side: side, scale: scale)
     }
 
     private func updateLabelFonts() {

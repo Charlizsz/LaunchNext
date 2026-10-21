@@ -138,10 +138,10 @@ extension CAGridView {
         let iconLayer = CALayer()
         iconLayer.name = "icon"
         iconLayer.contentsGravity = .resizeAspect
-        iconLayer.contentsScale = NSScreen.main?.backingScaleFactor ?? 2.0
+        iconLayer.contentsScale = renderingScale
         iconLayer.masksToBounds = false
-        iconLayer.shouldRasterize = true
-        iconLayer.rasterizationScale = NSScreen.main?.backingScaleFactor ?? 2.0
+        iconLayer.shouldRasterize = false
+        iconLayer.rasterizationScale = renderingScale
         iconLayer.drawsAsynchronously = true
         iconLayer.shadowOpacity = 0
 
@@ -150,7 +150,7 @@ extension CAGridView {
         // 文字标签层 - 匹配原 SwiftUI 样式
         let textLayer = CATextLayer()
         textLayer.name = "label"
-        textLayer.contentsScale = NSScreen.main?.backingScaleFactor ?? 2.0
+        textLayer.contentsScale = renderingScale
         textLayer.fontSize = labelFontSize
         textLayer.font = NSFont.systemFont(ofSize: labelFontSize, weight: labelFontWeight)
         textLayer.isHidden = !showLabels
@@ -158,9 +158,9 @@ extension CAGridView {
         textLayer.truncationMode = .end
         textLayer.isWrapped = true
 
-        // 性能优化：栅格化文字层
-        textLayer.shouldRasterize = true
-        textLayer.rasterizationScale = NSScreen.main?.backingScaleFactor ?? 2.0
+        // Draw text directly at the current display scale, without a second bitmap cache.
+        textLayer.shouldRasterize = false
+        textLayer.rasterizationScale = renderingScale
 
         // Match system label color for light/dark
         textLayer.foregroundColor = currentLabelColor().cgColor
@@ -190,7 +190,7 @@ extension CAGridView {
             checkboxLayer.cornerRadius = 8
             checkboxLayer.borderWidth = 1.25
             checkboxLayer.zPosition = 20
-            checkboxLayer.contentsScale = NSScreen.main?.backingScaleFactor ?? 2.0
+            checkboxLayer.contentsScale = renderingScale
 
             let markLayer = CAShapeLayer()
             markLayer.name = "batchSelectionCheckboxMark"
@@ -198,7 +198,7 @@ extension CAGridView {
             markLayer.strokeColor = NSColor.white.cgColor
             markLayer.lineCap = .round
             markLayer.lineJoin = .round
-            markLayer.contentsScale = NSScreen.main?.backingScaleFactor ?? 2.0
+            markLayer.contentsScale = renderingScale
             checkboxLayer.addSublayer(markLayer)
             containerLayer.addSublayer(checkboxLayer)
         }
@@ -210,19 +210,22 @@ extension CAGridView {
         switch item {
         case .app(let app):
             let path = app.url.path
-            layer.setValue(path, forKey: "iconPath")
-            if let cgImage = getCachedIcon(for: app.url.path) {
+            let side = iconSize
+            let scale = renderingScale
+            let key = "\(path)|\(side)|\(scale)"
+            layer.setValue(key, forKey: "iconPath")
+            if let cgImage = getCachedIcon(for: key) {
                 layer.contents = cgImage
             } else {
                 // 异步加载 - 直接从系统获取图标
                 DispatchQueue.global(qos: .userInitiated).async { [weak self, weak layer] in
                     guard let self = self, let layer = layer else { return }
-                    guard layer.value(forKey: "iconPath") as? String == path else { return }
+                    guard layer.value(forKey: "iconPath") as? String == key else { return }
                     // 使用 IconStore 获取图标（CA 模式走 Next Engine 逻辑）
                     let icon = IconStore.shared.icon(forPath: path)
-                    if let cgImage = self.loadIcon(for: path, icon: icon) {
+                    if let cgImage = self.loadIcon(for: key, icon: icon, side: side, scale: scale) {
                         DispatchQueue.main.async {
-                            guard layer.value(forKey: "iconPath") as? String == path else { return }
+                            guard layer.value(forKey: "iconPath") as? String == key else { return }
                             CATransaction.begin()
                             CATransaction.setDisableActions(true)
                             layer.contents = cgImage
@@ -273,7 +276,7 @@ extension CAGridView {
         return iconCache[path]
     }
 
-    func loadIcon(for path: String, icon: NSImage) -> CGImage? {
+    func loadIcon(for path: String, icon: NSImage, side: CGFloat, scale: CGFloat) -> CGImage? {
         iconCacheLock.lock()
         if let cached = iconCache[path] {
             iconCacheLock.unlock()
@@ -281,14 +284,7 @@ extension CAGridView {
         }
         iconCacheLock.unlock()
 
-        // 渲染为 CGImage
-        let size = NSSize(width: iconSize * 2, height: iconSize * 2) // Retina
-        let image = NSImage(size: size)
-        image.lockFocus()
-        icon.draw(in: NSRect(origin: .zero, size: size))
-        image.unlockFocus()
-
-        guard let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+        guard let cgImage = IconRenderQuality.bitmap(icon, side: side, scale: scale) else {
             return nil
         }
 
@@ -301,12 +297,15 @@ extension CAGridView {
 
     func preloadIcons() {
         guard enableIconPreload else { return }
+        let side = iconSize
+        let scale = renderingScale
+        let snapshot = items
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
-            for item in self.items {
+            for item in snapshot {
                 if case .app(let app) = item {
                     let icon = IconStore.shared.icon(forPath: app.url.path)
-                    _ = self.loadIcon(for: app.url.path, icon: icon)
+                    _ = self.loadIcon(for: "\(app.url.path)|\(side)|\(scale)", icon: icon, side: side, scale: scale)
                 }
             }
             // print("✅ [CAGrid] Icons preloaded")
@@ -352,13 +351,13 @@ extension CAGridView {
                 let containerX = CGFloat(pageIndex) * pageStride + cellOriginX
                 let containerY = cellOriginY + (cellHeight - totalHeight) / 2
 
-                containerLayer.frame = CGRect(x: containerX, y: containerY, width: cellWidth, height: totalHeight)
+                containerLayer.frame = convertFromBacking(IconRenderQuality.aligned(convertToBacking(CGRect(x: containerX, y: containerY, width: cellWidth, height: totalHeight)), scale: 1))
 
                 if let iconLayer = containerLayer.sublayers?.first(where: { $0.name == "icon" }) {
                     let iconX = (cellWidth - actualIconSize) / 2
                     let iconY = labelHeight + labelTopSpacing
                     let iconFrame = CGRect(x: iconX, y: iconY, width: actualIconSize, height: actualIconSize)
-                    iconLayer.frame = iconFrame
+                    iconLayer.frame = IconRenderQuality.aligned(iconFrame, scale: renderingScale)
 
                     if let checkboxLayer = containerLayer.sublayers?.first(where: { $0.name == "batchSelectionCheckbox" }) {
                         let checkboxSize = max(16, min(22, actualIconSize * 0.28))
@@ -387,7 +386,7 @@ extension CAGridView {
                 if let textLayer = containerLayer.sublayers?.first(where: { $0.name == "label" }) as? CATextLayer {
                     let labelWidth = cellWidth - 8
                     textLayer.isHidden = !showLabels
-                    textLayer.frame = CGRect(x: 4, y: 0, width: labelWidth, height: labelHeight)
+                    textLayer.frame = IconRenderQuality.alignedOrigin(CGRect(x: 4, y: 0, width: labelWidth, height: labelHeight), scale: renderingScale)
                 }
             }
         }
