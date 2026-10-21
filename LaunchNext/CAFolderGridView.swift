@@ -721,7 +721,10 @@ final class CAFolderGridView: NSView {
     }
 
     override func mouseMoved(with event: NSEvent) {
-        guard presentationState?.allowsInteraction != false else { return }
+        guard presentationState?.allowsInteraction != false else {
+            updateHoverIndex(nil)
+            return
+        }
         guard hoverMagnificationEnabled, !isDraggingItem else {
             updateHoverIndex(nil)
             return
@@ -1172,6 +1175,14 @@ final class CAFolderGridView: NSView {
     }
 
     private func itemIndex(at point: CGPoint) -> Int? {
+        // Tracking-area mouseMoved events can arrive beyond the clipping edge.
+        // Test the visible viewport before testing full, partly clipped cells.
+        guard bounds.contains(point), visibleRect.contains(point) else { return nil }
+        if let surface = presentationState?.scrollIndicatorHost {
+            let surfacePoint = surface.convert(point, from: self)
+            let outline = NSBezierPath(roundedRect: surface.bounds, xRadius: 30, yRadius: 30)
+            guard outline.contains(surfacePoint) else { return nil }
+        }
         for (index, frame) in itemFrames.enumerated() where frame.contains(point) {
             return index
         }
