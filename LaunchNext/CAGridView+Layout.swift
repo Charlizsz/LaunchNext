@@ -384,9 +384,9 @@ extension CAGridView {
                 }
 
                 if let textLayer = containerLayer.sublayers?.first(where: { $0.name == "label" }) as? CATextLayer {
-                    let labelWidth = cellWidth - 8
+                    let labelWidth = IconLabelLayout.width(cellWidth: cellWidth, columnSpacing: columnSpacing)
                     textLayer.isHidden = !showLabels
-                    textLayer.frame = IconRenderQuality.alignedOrigin(CGRect(x: 4, y: 0, width: labelWidth, height: labelHeight), scale: renderingScale)
+                    textLayer.frame = IconRenderQuality.alignedOrigin(CGRect(x: (cellWidth - labelWidth) / 2, y: 0, width: labelWidth, height: labelHeight), scale: renderingScale)
                 }
             }
         }

@@ -5,6 +5,11 @@ import AppKit
 enum IconLabelLayout {
     nonisolated static let layerSpacing: CGFloat = 4
     nonisolated static let swiftUISpacing: CGFloat = 6
+    // Use part of the existing column gap for names, while keeping at least
+    // 8 pt between neighboring labels. Icon positions and cell widths stay fixed.
+    nonisolated static func width(cellWidth: CGFloat, columnSpacing: CGFloat) -> CGFloat {
+        max(1, cellWidth - 8 + min(24, max(0, columnSpacing)))
+    }
     nonisolated static func height(fontSize: CGFloat) -> CGFloat {
         let font = NSFont.systemFont(ofSize: fontSize)
         return ceil(font.ascender - font.descender + font.leading) * 2 + 2
@@ -132,6 +137,7 @@ private struct LaunchpadItemButtonContent: View {
                 let renderedIcon: NSImage = {
                     switch item {
                     case .app(let app):
+                        if let selected = IconStore.shared.preferredIcon(forPath: app.url.path) { return selected }
                         if let cachedIcon = AppCacheManager.shared.getCachedIcon(for: app.url.path),
                            cachedIcon.size.width > 0,
                            cachedIcon.size.height > 0 {

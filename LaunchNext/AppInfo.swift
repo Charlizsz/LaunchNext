@@ -45,7 +45,7 @@ struct AppInfo: Identifiable, Equatable, Hashable {
         let chosenName = shouldUseLocalized ? localizedName : englishName
         let icon: NSImage
         if loadIcon {
-            icon = NSWorkspace.shared.icon(forFile: url.path)
+            icon = IconStore.shared.icon(forPath: url.path)
         } else {
             icon = transparentPlaceholderIcon
         }

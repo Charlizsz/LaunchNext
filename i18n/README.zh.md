@@ -6,11 +6,11 @@
 
 本分支新增双行应用名称、独立的文件夹列数/图标大小/行间距设置、可移动设置窗口和原生文件夹滚动条，并修复文件夹背景悬停与展开/收起动画问题。详见[完整改动说明](../Documentation/FORK_CHANGES.zh-CN.md)及[本地构建说明](../Documentation/LOCAL_BUILD.md)。
 
-下方下载链接指向上游发行版，不包含本分支的定制改动。
+当前定制版为 **2.4.2-C**（Apple Silicon，macOS 26 及以上），新增更宽的名称显示、图标比例数值和 ChatGPT/Telegram 自选图标适配，更新源已切换至本仓库。下方 Homebrew 安装说明仍属于上游版本。
 
 ## 📥 下载
 
-**[点此下载](https://github.com/RoversX/LaunchNext/releases/latest)** - 获取最新版本
+**[点此下载定制版](https://github.com/Charlizsz/LaunchNext/releases/latest)** - 获取本分支最新版本
 
 🌐 **网站**: [closex.org/launchnext](https://closex.org/launchnext/)  
 📚 **文档**: [docs.closex.org/launchnext](https://docs.closex.org/launchnext/)

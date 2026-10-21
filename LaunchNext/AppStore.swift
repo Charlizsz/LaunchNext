@@ -64,7 +64,16 @@ private struct SemanticVersion: Comparable, Equatable {
         let sanitized = withoutPrefix.split(separator: "-", maxSplits: 1, omittingEmptySubsequences: true).first ?? withoutPrefix[...]
         let parts = sanitized.split(separator: ".").map { Int($0) ?? 0 }
         guard !parts.isEmpty else { return nil }
-        components = parts
+        // C releases may advance independently of the upstream numeric version.
+        // Older charlizsz date tags are the baseline, not newer C revisions.
+        let suffix = withoutPrefix.split(separator: "-", maxSplits: 1).dropFirst().first.map(String.init) ?? ""
+        let revision: [Int]
+        if suffix.lowercased().hasPrefix("c.") {
+            revision = suffix.dropFirst(2).split(separator: ".").compactMap { Int($0) }
+        } else {
+            revision = []
+        }
+        components = parts + revision
     }
 
     static func < (lhs: SemanticVersion, rhs: SemanticVersion) -> Bool {
@@ -3588,7 +3597,18 @@ final class AppStore: ObservableObject {
 
     /// Called only when the LaunchNext window is about to become visible.
     /// There is no background timer: the 15-minute fallback is evaluated here.
+    private var lastPreferredIconSelection = PreferredAppIcon.selectionToken()
+
     func reconcileApplicationsOnWindowShow() {
+        let selection = PreferredAppIcon.selectionToken()
+        if selection != lastPreferredIconSelection {
+            lastPreferredIconSelection = selection
+            clearIconCachesForLayoutChange()
+            cacheManager.clearAllCaches()
+            iconCacheRefreshTrigger = UUID()
+            triggerFolderUpdate()
+            triggerGridRefresh()
+        }
         guard hasPerformedInitialScan else { return }
 
         if needsReconciliationAfterExternalUninstall {
@@ -7347,7 +7367,7 @@ final class AppStore: ObservableObject {
     }
 
     private func fetchLatestRelease() async throws -> GitHubRelease {
-        let url = URL(string: "https://api.github.com/repos/RoversX/LaunchNext/releases/latest")!
+        let url = URL(string: "https://api.github.com/repos/Charlizsz/LaunchNext/releases/latest")!
         var request = URLRequest(url: url)
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
@@ -7403,7 +7423,7 @@ final class AppStore: ObservableObject {
         enqueueUpdateNotification(
             title: localized(.updateAvailable),
             body: "\(localized(.newVersion)) 9.9.9-test",
-            releaseURL: URL(string: "https://closex.org/launchnext/")
+            releaseURL: URL(string: "https://github.com/Charlizsz/LaunchNext/releases")
         )
     }
 

@@ -1078,7 +1078,7 @@ struct LaunchpadView: View {
                     if let draggingItem {
                         DragPreviewItem(item: draggingItem,
                                         iconSize: iconSize,
-                                        labelWidth: columnWidth * 0.9,
+                                        labelWidth: IconLabelLayout.width(cellWidth: columnWidth, columnSpacing: config.columnSpacing),
                                         scale: dragPreviewScale)
                             .position(x: dragPreviewPosition.x, y: dragPreviewPosition.y)
                             .zIndex(100)
@@ -1139,7 +1139,7 @@ struct LaunchpadView: View {
                                         columnWidth: columnWidth,
                                         iconSize: iconSize,
                                         appHeight: appHeight,
-                                        labelWidth: columnWidth * 0.9,
+                                        labelWidth: IconLabelLayout.width(cellWidth: columnWidth, columnSpacing: config.columnSpacing),
                                         isSelected: (!isFolderOpen && isKeyboardNavigationActive && selectedIndex == globalIndex)
                                     )
                                 }
@@ -1160,7 +1160,7 @@ struct LaunchpadView: View {
                 if let draggingItem {
                     DragPreviewItem(item: draggingItem,
                                     iconSize: iconSize,
-                                    labelWidth: columnWidth * 0.9,
+                                    labelWidth: IconLabelLayout.width(cellWidth: columnWidth, columnSpacing: config.columnSpacing),
                                     scale: dragPreviewScale)
                         .position(x: dragPreviewPosition.x, y: dragPreviewPosition.y)
                         .zIndex(100)
@@ -2865,7 +2865,7 @@ extension LaunchpadView {
         // 与 LaunchpadItemButton 中的布局保持一致：按钮内容有 8pt 内边距，图标与标签使用共享垂直间距
         let horizontalPadding: CGFloat = 8
         let verticalPadding: CGFloat = 8
-        let labelWidth = columnWidth * 0.9
+        let labelWidth = IconLabelLayout.width(cellWidth: columnWidth, columnSpacing: config.columnSpacing)
         let hasLabel = appStore.showLabels
         let iconLabelSpacing: CGFloat = hasLabel ? IconLabelLayout.swiftUISpacing : 0
         let contentWidth = min(columnWidth, max(iconSize, labelWidth) + horizontalPadding * 2)

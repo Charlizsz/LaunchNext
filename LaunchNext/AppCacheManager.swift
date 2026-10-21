@@ -129,7 +129,7 @@ final class AppCacheManager: ObservableObject {
             
             for path in appPaths {
                 if self.getCachedIcon(for: path) == nil {
-                    let icon = NSWorkspace.shared.icon(forFile: path)
+                    let icon = IconStore.shared.icon(forPath: path)
                     let key = self.cacheKeyGenerator.generateIconKey(for: path)
                     self.cacheLock.lock()
                     self.iconCache[key] = icon
@@ -249,7 +249,7 @@ final class AppCacheManager: ObservableObject {
             if let existingIndex = iconCacheOrder.firstIndex(of: key) {
                 iconCacheOrder.remove(at: existingIndex)
             }
-            iconCache[key] = app.icon
+            iconCache[key] = IconStore.shared.icon(for: app)
             iconCacheOrder.append(key)
             if iconCache.count > maxIconCacheSize {
                 if let oldestKey = iconCacheOrder.first {

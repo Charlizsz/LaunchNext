@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Build locally with Command Line Tools, reusing installed compiled assets."""
-import pathlib, subprocess, shutil, json, sys
+import pathlib, subprocess, shutil, json, sys, plistlib, re
 root = pathlib.Path(__file__).resolve().parents[2]
 out = root / 'build/local'
 out.mkdir(parents=True, exist_ok=True)
@@ -33,11 +33,23 @@ new_api = """                if #available(macOS 27.0, *) {
 assert menu.count(new_api) == 1
 (out/'RightClickMenu.swift').write_text(menu.replace(new_api, ''))
 run(['xcrun', 'swiftc', *common, '-parse-as-library', '-module-name', 'LaunchNext', '-whole-module-optimization', '-num-threads', '4', '-Xfrontend', '-solver-expression-time-threshold=120', '-Xfrontend', '-solver-memory-threshold', '-Xfrontend', '2147483648', '-default-isolation', 'MainActor', '-enable-upcoming-feature', 'NonisolatedNonsendingByDefault', '-enable-upcoming-feature', 'InferIsolatedConformances', '-enable-upcoming-feature', 'MemberImportVisibility', '-I', out, '-I', framework, '-F', '/System/Library/PrivateFrameworks', '-framework', 'MultitouchSupport', *[out/p.name if p.name in ['FolderInfo.swift', 'RightClickMenu.swift'] else p for p in sorted((root/'LaunchNext').rglob('*.swift'))], *objects, out/'libLaunchNextContextMenuCore.a', out/'libLaunchNextWallpaperCore.a', '-o', out/'LaunchNext'])
+# Rebuild the updater too: reusing an upstream binary would use the wrong repository.
+run(['xcrun', 'swiftc', *common, '-parse-as-library', *sorted((root/'UpdaterScripts/SwiftUpdater/Sources/SwiftUpdater').glob('*.swift')), '-lncurses', '-o', out/'SwiftUpdater'])
 app = out/'LaunchNext.app'
 if app.exists():
     shutil.rmtree(app)
 run(['ditto', '/Applications/LaunchNext.app', app])
 shutil.copy2(out/'LaunchNext', app/'Contents/MacOS/LaunchNext')
+shutil.copy2(out/'SwiftUpdater', app/'Contents/Resources/Updater/SwiftUpdater')
+project = (root/'LaunchNext.xcodeproj/project.pbxproj').read_text()
+version = re.search(r'MARKETING_VERSION = "?([^";]+)"?;', project).group(1)
+build = re.search(r'CURRENT_PROJECT_VERSION = ([^;]+);', project).group(1)
+info_path = app/'Contents/Info.plist'
+info = plistlib.loads(info_path.read_bytes())
+info['CFBundleShortVersionString'] = version
+info['CFBundleVersion'] = build
+info_path.write_bytes(plistlib.dumps(info))
+
 for loc in root.glob('*.lproj'):
     shutil.copytree(loc, app/'Contents/Resources'/loc.name, dirs_exist_ok=True)
 run(['xattr', '-cr', app])

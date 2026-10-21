@@ -5253,6 +5253,9 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
                 HStack(spacing: 12) {
                     Text(appStore.localized(.iconSize))
                         .font(.headline)
+                    Text(String(format: "%.1f%%", scopedIconScaleBinding().wrappedValue * 100))
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
                     Spacer()
                     layoutModeScopeControl()
                 }

@@ -10,7 +10,7 @@ Output: `build/local/LaunchNext.app`. This script does **not** install the app o
 
 The CLT lacks SwiftDataMacros. `expand-models.py` generates explicit PersistentModel/Observable implementations for this project's two models into ignored build intermediates. The normal `FolderInfo.swift` and Xcode build retain their original macros. A compiler-local VFS overlay hides the CLT's duplicate SwiftBridging module declaration. Nothing in the system toolchain is edited.
 
-This local build reuses compiled assets and updater resources from `/Applications/LaunchNext.app`, replaces the executable, copies repository localizations, and applies an ad-hoc signature. It is a local arm64 build, not an upstream notarized release.
+This local build reuses compiled assets from `/Applications/LaunchNext.app`, rebuilds both the main executable and SwiftUpdater, copies repository localizations, applies version/build metadata from the Xcode project, and applies an ad-hoc signature. It is a local arm64 build, not an upstream notarized release.
 
 Validation performed on 2026-10-21: save/update/reopen for both models, nullable pinned-app array, reading a SQLite backup of the existing store, and checking all existing layout fields survived. The fork's current optional `pinnedAppPaths` differs from the installed older schema; migration was tested only on a copy before installation. Keep the original application and data backups for rollback.
 

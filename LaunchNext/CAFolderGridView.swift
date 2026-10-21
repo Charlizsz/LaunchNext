@@ -608,7 +608,8 @@ final class CAFolderGridView: NSView {
         }
         if let textLayer = layer.sublayers?.first(where: { $0.name == "label" }) as? CATextLayer {
             textLayer.isHidden = !showLabels
-            textLayer.frame = IconRenderQuality.alignedOrigin(CGRect(x: 4, y: 0, width: metrics.cellWidth - 8, height: metrics.labelHeight), scale: backingScale)
+            let labelWidth = IconLabelLayout.width(cellWidth: metrics.cellWidth, columnSpacing: columnSpacing)
+            textLayer.frame = IconRenderQuality.alignedOrigin(CGRect(x: (metrics.cellWidth - labelWidth) / 2, y: 0, width: labelWidth, height: metrics.labelHeight), scale: backingScale)
         }
         if let warningLayer = layer.sublayers?.first(where: { $0.name == "missingWarning" }) as? CATextLayer {
             let side = max(14, iconSize * 0.22)

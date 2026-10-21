@@ -6,11 +6,11 @@
 
 This fork includes two-line app names, independent folder layout controls, a movable settings window, native folder scroll indicators, and folder interaction/animation fixes. See the [detailed change log (中文)](Documentation/FORK_CHANGES.zh-CN.md) and [local build guide](Documentation/LOCAL_BUILD.md).
 
-The download links below refer to upstream releases and do not include these custom changes.
+Current custom release: **2.4.2-C** (Apple Silicon, macOS 26+). Includes wider two-line labels, icon-size percentages, ChatGPT/Telegram selected icons, and updates from this fork. The Homebrew instructions below still refer to upstream.
 
 ## 📥 Download
 
-**[Download here](https://github.com/RoversX/LaunchNext/releases/latest)** - Get the latest release
+**[Download this fork](https://github.com/Charlizsz/LaunchNext/releases/latest)** - Get the latest custom release
 
 🌐 **Website**: [closex.org/launchnext](https://closex.org/launchnext/)  
 📚 **Docs**: [docs.closex.org/launchnext](https://docs.closex.org/launchnext/)

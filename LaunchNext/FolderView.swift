@@ -288,7 +288,7 @@ struct FolderView: View {
         // 保障单元格至少能容纳传入的图标尺寸与标签区域
         let columnWidth = max(recomputedColumnWidth, iconSize)
         let appHeight = iconSize + IconLabelLayout.swiftUISpacing + IconLabelLayout.height(fontSize: CGFloat(appStore.iconLabelFontSize)) + 16
-        let labelWidth: CGFloat = columnWidth * 0.9
+        let labelWidth: CGFloat = IconLabelLayout.width(cellWidth: columnWidth, columnSpacing: spacing)
 
         if appStore.useCAGridRenderer {
             CAFolderGridViewRepresentable(

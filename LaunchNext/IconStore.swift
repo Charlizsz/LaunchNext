@@ -11,13 +11,34 @@ final class IconStore {
     }
 
     func icon(for app: AppInfo) -> NSImage {
+        if let selected = preferredIcon(forPath: app.url.path) { return selected }
         if PerformanceMode.current == .full {
             return app.icon
         }
         return icon(forPath: app.url.path)
     }
 
+    func preferredIcon(forPath path: String) -> NSImage? {
+        let appURL = URL(fileURLWithPath: path)
+        let customToken = PreferredAppIcon.customIconToken(for: appURL)
+        if !customToken.isEmpty {
+            let key = (path + "|custom|" + customToken) as NSString
+            if let cached = cache.object(forKey: key) { return cached }
+            if let image = PreferredAppIcon.customIcon(for: appURL), image.isValid {
+                cache.setObject(image, forKey: key)
+                return image
+            }
+        }
+        guard let resource = PreferredAppIcon.resourceURL(for: appURL) else { return nil }
+        let key = (path + "|selected|" + resource.path) as NSString
+        if let cached = cache.object(forKey: key) { return cached }
+        guard let image = NSImage(contentsOf: resource), image.isValid else { return nil }
+        cache.setObject(image, forKey: key)
+        return image
+    }
+
     func icon(forPath path: String) -> NSImage {
+        if let selected = preferredIcon(forPath: path) { return selected }
         let key = path as NSString
         if let cached = cache.object(forKey: key) {
             return cached
